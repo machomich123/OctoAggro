@@ -1,4 +1,4 @@
-# OctoAggro 0.3.0 — native selection ring test
+# OctoAggro 0.4.0 — native selection ring test
 
 This build enlarges the **existing game selection ring**. The rejected 0.2.0
 custom world-line renderer has been removed, including its textures, camera
@@ -14,8 +14,10 @@ handles its texture, position, camera and ground geometry. The original input
 is restored byte-for-byte on return. No model-scale, bounding-radius descriptor,
 combat-reach descriptor or targeting changes are made by this hook.
 
-**The game still decides when to display a selection ring.** This build enlarges
-that existing ring; it does not force additional rings onto unselected mobs.
+**Always-visible circles** is a separate in-game checkbox. When enabled, the
+bridge calls the same native circle drawer for up to 12 observed red NPCs during
+the engine visual-update stage, without selecting them. Selected NPCs are not
+drawn twice. When disabled, only the normal game selection ring is enlarged.
 The normal ring texture and colour are retained. Moving and rotating do not
 require Lua to recreate ring segments. Request updates run four times a second;
 the native renderer follows the unit at its own rendering rate. Requests expire
@@ -34,12 +36,16 @@ linked packs and scripts are not available. No complete pull graph or millimetre
 accuracy is claimed. Unknown hostile levels and neutral mobs are not assigned
 an invented proximity radius.
 
+The user reported that 0.3.0 native-ring drawing worked acceptably, while the
+aggro estimate did not exactly match real aggro. This is evidence for the prior
+live drawing path, not verification of the new always-visible mode.
+
 The 0.2.0 renderer was rejected after the user reported extreme lag and supplied
-images showing broken/incorrect ground placement. 0.3.0 removes that drawing path.
+images showing broken/incorrect ground placement. The current build retains removal of that drawing path.
 This proves removal in code, **not** a measured FPS improvement or perfect terrain
 behaviour. A large native ring can still interact differently with steep slopes,
 caves and overhangs. The actual game's draw function, hooking coexistence and
-appearance have not been tested live for this build.
+new always-visible appearance have not been tested live for this build.
 
 ## Install and test
 

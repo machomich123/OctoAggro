@@ -2,7 +2,7 @@
 ## Title: OctoAggro
 ## Notes: Native selection-ring radius estimates and native body glow. Requires OctoAggroNative + ClassicAPI.
 ## Author: Michael
-## Version: 0.3.0-test
+## Version: 0.4.0-test
 ## SavedVariablesPerCharacter: OctoAggroDB
 World.lua
 Settings.lua

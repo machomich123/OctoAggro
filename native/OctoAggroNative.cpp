@@ -31,6 +31,10 @@ struct RadiusRequest {float radius;DWORD until;};
 std::unordered_map<uint64_t,RadiusRequest> circles;
 using DrawCircle=void(__thiscall*)(void*);
 DrawCircle circleOriginal=nullptr;
+using VisualUpdate=void(__thiscall*)(void*,float);
+VisualUpdate visualOriginal=nullptr;
+bool alwaysCircles=false;
+DWORD alwaysUntil=0;
 // Change only the ring input, and only during its native draw call.
 struct RestoreFloat {
   float* slot;uint32_t bits;
@@ -50,6 +54,22 @@ void __fastcall CircleDrawHook(void* obj,void*){
   RestoreFloat restore(size);
   *size=request->second.radius/scale;
   circleOriginal(obj);
+}
+void ExtraCircle(void* obj,uint64_t selected,DWORD now){
+  if(!alwaysCircles || static_cast<int32_t>(now-alwaysUntil)>=0)return;
+  auto desc=*reinterpret_cast<unsigned char**>(static_cast<unsigned char*>(obj)+8);
+  if(!desc)return;
+  uint64_t guid;std::memcpy(&guid,desc,8);
+  if(guid==selected)return; // The original update already draws this ring.
+  auto request=circles.find(guid);
+  if(request==circles.end()||static_cast<int32_t>(now-request->second.until)>=0)return;
+  CircleDrawHook(obj,nullptr);
+}
+void __fastcall VisualUpdateHook(void* obj,void*,float dt){
+  visualOriginal(obj,dt);
+  if(!alwaysCircles)return;
+  const uint64_t selected=*at<uint64_t*>(0xB4E2D8);
+  ExtraCircle(obj,selected,GetTickCount());
 }
 bool ready(){return *at<void**>(0xB41414)!=nullptr;}
 void* object(uint64_t guid){
@@ -71,9 +91,14 @@ void glow(void* obj,bool enable){
   uintptr_t addr=enable?0x614550:0x6144F0;
   at<void(__thiscall*)(void*,int)>(addr)(obj,reason);
 }
-void clear(){for(const auto& entry:owned)glow(object(entry.first),false);owned.clear();circles.clear();}
+void clear(){for(const auto& entry:owned)glow(object(entry.first),false);owned.clear();circles.clear();alwaysCircles=false;}
 int missing(L l){settop(l,0);pushnil(l);return 1;}
-int __fastcall Version(L){L l=context();settop(l,0);pushnumber(l,2);return 1;}
+int __fastcall Version(L){L l=context();settop(l,0);pushnumber(l,3);return 1;}
+int __fastcall Always(L){
+  L l=context();if(type(l,1)!=1)return missing(l);
+  alwaysCircles=boolean(l,1)!=0;alwaysUntil=GetTickCount()+750;
+  settop(l,0);pushnumber(l,1);return 1;
+}
 int __fastcall Clear(L){L l=context();clear();settop(l,0);pushnumber(l,1);return 1;}
 int __fastcall Glow(L){
   L l=context();uint64_t guid=0;
@@ -106,12 +131,14 @@ void __fastcall RegisterHook(const char* name,CFn function){
     registerOriginal("OctoAggroNativeGlow",Glow);
     registerOriginal("OctoAggroNativeClear",Clear);
     registerOriginal("OctoAggroNativeCircleRadius",CircleRadius);
+    registerOriginal("OctoAggroNativeAlwaysCircles",Always);
     registering=false;
   }
 }
 void __fastcall TickHook(int a,int b,int c){
   tickOriginal(a,b,c);
   DWORD now=GetTickCount();
+  if(!ready()||static_cast<int32_t>(now-alwaysUntil)>=0)alwaysCircles=false;
   for(auto it=owned.begin();it!=owned.end();){
     if(!ready() || static_cast<int32_t>(now-it->second)>=0){glow(object(it->first),false);it=owned.erase(it);}
     else ++it;
@@ -142,6 +169,8 @@ extern "C" __declspec(dllexport) unsigned __cdecl Load(){
   if(MH_CreateHook(at<void*>(0x704120),reinterpret_cast<void*>(RegisterHook),reinterpret_cast<void**>(&registerOriginal))!=MH_OK)return 3;
   if(MH_CreateHook(at<void*>(0x66FD50),reinterpret_cast<void*>(TickHook),reinterpret_cast<void**>(&tickOriginal))!=MH_OK){MH_RemoveHook(at<void*>(0x704120));return 4;}
   if(MH_CreateHook(at<void*>(0x608E00),reinterpret_cast<void*>(CircleDrawHook),reinterpret_cast<void**>(&circleOriginal))!=MH_OK){MH_RemoveHook(MH_ALL_HOOKS);return 6;}
+  if(MH_CreateHook(at<void*>(0x614A90),reinterpret_cast<void*>(VisualUpdateHook),reinterpret_cast<void**>(&visualOriginal))!=MH_OK){MH_RemoveHook(MH_ALL_HOOKS);return 7;}
+  MH_QueueEnableHook(at<void*>(0x614A90));
   MH_QueueEnableHook(at<void*>(0x608E00));
   MH_QueueEnableHook(at<void*>(0x704120));MH_QueueEnableHook(at<void*>(0x66FD50));
   if(MH_ApplyQueued()!=MH_OK){MH_DisableHook(MH_ALL_HOOKS);MH_RemoveHook(MH_ALL_HOOKS);return 5;}
