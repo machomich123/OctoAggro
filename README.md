@@ -1,133 +1,114 @@
-# OctoAggro 0.2.0 — world-rendering test
+# OctoAggro 0.3.0 — native selection ring test
 
-This replaces the rejected radar design. There is **no radar, HUD, NPC list or
-nameplate decoration**. Only `/oa` opens a settings panel.
+This build enlarges the **existing game selection ring**. The rejected 0.2.0
+custom world-line renderer has been removed, including its textures, camera
+projection, terrain queries and per-frame Lua drawing. The addon has no radar,
+HUD or nameplate decorations. `/oa` opens settings.
 
-## Implemented design
+## What changed
 
-- A red circular outline surrounds observed hostile NPCs **in the game view**.
-  Its points are computed in world yards around the NPC, traced onto nearby
-  world geometry and projected through the real game camera. It is not a fixed
-  screen-size circle or an enlarged icon.
-- Hovering an NPC applies the client's own model highlight to it and to observed
-  nearby potential assists. No target switching is involved. The native engine
-  determines the highlight colour; live appearance is not yet verified against
-  the supplied screenshots.
-- Native highlight ownership uses its own bit (reason 30), leaving the game's
-  target/mouseover reasons intact. A 750 ms expiry clears it if Lua stops refreshing
-  it. Loss of hover, disable, despawn, Lua reinitialisation and world transitions
-  clear addon-owned highlights.
-- Settings separately control all visuals, rings and body glow. The base aggro
-  estimate and possible-assist distance can be adjusted.
+The native bridge intercepts the client's existing selection-ring draw function
+at `0x608e00`. During that function only, the circle-size input at `CGUnit+0xcf0`
+is replaced with `requestedRadius / objectScale`. The original draw routine
+handles its texture, position, camera and ground geometry. The original input
+is restored byte-for-byte on return. No model-scale, bounding-radius descriptor,
+combat-reach descriptor or targeting changes are made by this hook.
 
-## Exactness and remaining uncertainty
+**The game still decides when to display a selection ring.** This build enlarges
+that existing ring; it does not force additional rings onto unselected mobs.
+The normal ring texture and colour are retained. Moving and rotating do not
+require Lua to recreate ring segments. Request updates run four times a second;
+the native renderer follows the unit at its own rendering rate. Requests expire
+after 750 ms without refresh.
 
-**This is an experimental client-extension build, not a verified live-game result.**
-The visible radius is an estimate. The default base is 20 game yards, adjusted by
-level difference using a VMaNGOS reference formula. OctoWoW's actual server rules,
-detection auras, multipliers and NPC scripts are not known. The 10-yard default
-assist distance is a geometric heuristic. Being inside it does not prove that an
-NPC will assist; being outside it does not prove that it will not. There is no
-millimetre accuracy or complete prediction of which NPCs an attack pulls.
+Mouseover body glow and nearby possible-assist glow are retained from the prior
+build. These use a separately owned native highlight reason and are independently
+switchable. Actual native colour and appearance still need live verification.
 
-Only target, mouseover and accessible nameplate NPCs are observed. Up to twelve
-nearest observed hostile NPCs within 60 yards get rings, with mouseover prioritised.
-Their rings have 64 segments. Terrain sampling occurs about twice a second,
-projection about 20 times a second, and camera obstruction checks about 7 times
-a second. This is not pixel-perfect depth-buffer rendering: partially obscured
-segments, near-screen edges, slopes, caves, overhangs and multiple floors require
-live visual testing. Missing hits and off-screen endpoints are not fabricated.
+## Accuracy and live-test boundary
 
-## Requirements
+The aggro radius remains an estimate: default 20 game yards, adjusted for level
+difference using a VMaNGOS reference formula. Possible assists remain a geometric
+heuristic with default radius 10 yards. Actual OctoWoW server detection, auras,
+linked packs and scripts are not available. No complete pull graph or millimetre
+accuracy is claimed. Unknown hostile levels and neutral mobs are not assigned
+an invented proximity radius.
 
-- The **exact** inspected 32-bit OctoWoW client at build 1.12.1.5875. Supported
-  WoW.exe SHA-256:
-  `5014ca1cfedf860f10e93fe7d955c56c28eb11a2bb503030dbb9b1c777f00470`.
-  The DLL refuses other executable fingerprints before installing hooks.
-- VanillaFixes with `dlls.txt` and the installed ClassicAPI texture transformations,
-  UnitPosition and UnitGUID functions. This is not an addon for official WoW.
-- Enemy nameplates enabled for observation of nearby NPCs.
+The 0.2.0 renderer was rejected after the user reported extreme lag and supplied
+images showing broken/incorrect ground placement. 0.3.0 removes that drawing path.
+This proves removal in code, **not** a measured FPS improvement or perfect terrain
+behaviour. A large native ring can still interact differently with steep slopes,
+caves and overhangs. The actual game's draw function, hooking coexistence and
+appearance have not been tested live for this build.
 
-## Local installation
+## Install and test
 
-Close WoW, then run from this repository folder:
+Requires the exact inspected 32-bit OctoWoW 1.12.1.5875 executable, ClassicAPI and
+VanillaFixes. Supported WoW.exe SHA-256:
+`5014ca1cfedf860f10e93fe7d955c56c28eb11a2bb503030dbb9b1c777f00470`.
+The bridge rejects other fingerprints before installing hooks.
+
+Close WoW and run from this repository folder:
 
 ```powershell
 .\tools\Install.ps1 -GamePath 'W:\Games\Octowow'
 ```
 
-The installer checks the exact client hash and that the client is closed,
-backs up `dlls.txt` and an existing addon, installs six files with hash checks,
-and adds **one** loader entry:
+The installer backs up the current addon and dlls.txt, copies six hash-verified
+files and ensures exactly one loader entry:
 
 ```text
 Interface/AddOns/OctoAggro/native/OctoAggroNative.dll
 ```
 
-It does not replace ClassicAPI, UnitXP, graphics DLLs or WoW.exe. Existing loader
-entries are retained. The bridge is stored inside the addon folder so future
-repository updates can update its binary too. Restart via your usual launcher.
-Enable OctoAggro in the character-screen AddOns list.
+It does not replace WoW.exe, ClassicAPI, UnitXP or graphics DLLs. Restart via the
+normal launcher and enable OctoAggro in the AddOns list. Enable enemy nameplates
+for observing nearby possible assists. Commands: `/oa`, `/oa on`, `/oa off`,
+`/oa toggle`, `/oa status`.
 
-Commands: `/oa` for settings, `/oa on`, `/oa off`, `/oa toggle`, `/oa status`.
+For the first live test, select an already visible hostile NPC at a safe distance
+and compare the native ring with rings enabled/disabled in `/oa`. Move/rotate only
+in a known safe area; inspect smooth following, terrain and responsiveness. Do
+not pull NPCs to validate estimates on a Hardcore character. `/oa off` clears
+addon-owned radius/glow requests. A full restart is mandatory for DLL updates;
+`/reload` alone continues using the previously loaded native binary.
 
-## First live test
+With WoW closed, `tools/Restore.ps1 -GamePath ... -BackupPath ...` restores the
+installer snapshot. It refuses to overwrite files changed since installation.
 
-Stand in a familiar open area at a safe distance. Do not pull NPCs to validate
-an estimate on a Hardcore character. Check whether circles lie on the ground
-around NPCs, remain centred as you turn the camera, and scale with perspective.
-Hover a visible NPC and check body highlighting; leave it and check cleanup.
-Try `/oa off`, then each independent switch. Check camera/frame responsiveness.
-If anything looks wrong, disable with `/oa off` and retain the exact error text.
+## Repository URL installation
 
-The offline tests cannot establish that native calls, hook coexistence,
-camera projection or highlight appearance work in the actual running client.
-**A restart and controlled visual test are still required.**
-
-To disable the native bridge completely, close WoW and remove the one loader
-entry above. The remaining Lua addon fails without a substitute radar. A backed-up
-`dlls.txt` is available in the installer-reported backup directory; restore it
-only if no other loader changes have been made since installation.
-
-## GitHub and installation by repository URL
-
-Publish the **contents of this folder at the root** of a repository named
-`OctoAggro`. The root .toc, Lua sources, prebuilt native DLL, native source,
-MinHook sources/license, build script and tests are included. No upload has been
-performed and no remote is configured.
-
-For a repository installer or a direct git clone:
+Publish this folder's **contents at the repository root**, preferably in a
+repository named `OctoAggro`. Lua, prebuilt x86 DLL, native source, MinHook source
+and license, installer, restore tool and tests are included. No upload or remote
+is configured. A compatible repository installer can clone the addon; native
+activation still requires the one-time installer step:
 
 ```powershell
 git clone https://github.com/YOUR_ACCOUNT/OctoAggro.git 'W:\Games\Octowow\Interface\AddOns\OctoAggro'
 & 'W:\Games\Octowow\Interface\AddOns\OctoAggro\tools\Install.ps1' -GamePath 'W:\Games\Octowow'
 ```
 
-That URL is a placeholder. A pure Lua repository installer cannot independently
-activate a native DLL: **the one-time loader setup above is necessary**.
-After that, the binary lives in the git checkout and is updated with it. Close
-WoW before updating. An actual GitHub URL installation is not verified until
-the repository is published.
+The URL is a placeholder. After activation, the DLL is inside the checkout and
+can be updated with the repository. Close WoW before updating. Actual GitHub URL
+installation is not verified before publication.
 
-## Build and verification
+## Build and tests
 
-Rebuild with Visual Studio 2022 C++ tools using `tools/Build.ps1` (x86). The
-prebuilt DLL uses the static Microsoft runtime and needs no separate runtime
-installer. MinHook is vendored with its BSD license.
+`tools/Build.ps1` rebuilds the x86 DLL with Visual Studio C++ tools and a static
+runtime. `lua tests/test_native_ring.lua` runs the shipped Lua against a narrow
+mock. `tests/test_circle.cpp` executes the actual production circle hook with a
+fake native draw callback and verifies the temporary size and restored bytes.
+`tests/test_host.cpp` verifies rejection in an unsupported host.
 
-Run the Lua tests from the repository root with `lua tests/test.lua` using Lua
-5.0/5.1. They run actual World.lua and Settings.lua with simulated engine APIs.
-See VERIFICATION.md for the exact boundary of the verification.
+## Evidence
 
-Sources used to establish client interfaces:
-
-- [ClassicAPI](https://github.com/brues-code/ClassicAPI): object GUID resolver,
-  registry guard, native Lua registration and texture corner rotations.
-- [UnitXP SP3 mirror](https://github.com/brues-code/UnitXP_SP3), commit
-  `cedbf4b59776567db954ce38f681af1cbb9f0e1c`: camera projection and collision ABI.
-- The installed WoW.exe: disassembly of `0x492890` (mouseover setter),
-  `0x4945e0` (highlight wrapper), `0x614550`/`0x6144f0` (set/clear highlight)
-  and `0x66fd50` (world-tick ABI). Disassembly establishes the call structure,
-  not live rendering success.
-- [VMaNGOS reference aggro logic](https://github.com/vmangos/core/blob/development/src/game/Objects/Creature.cpp):
-  heuristic formula only; not confirmed OctoWoW server behaviour.
+The exact installed executable's `CGUnit` vtable points slot `+0x30` at `0x608e00`.
+Its disassembly computes the ring bounds from `CGUnit+0xcf0` multiplied by the
+descriptor scale at `+0x10`, then invokes the native textured ground drawing path.
+Only that draw function receives a scoped size override. No use is made of the
+generic model transform at `0x614cd0`, which would risk enlarging the NPC model.
+Client-call conventions were checked against the inspected executable and
+[ClassicAPI](https://github.com/brues-code/ClassicAPI). The aggro formula remains
+a reference from [VMaNGOS](https://github.com/vmangos/core/blob/development/src/game/Objects/Creature.cpp),
+not proof of OctoWoW server rules. See VERIFICATION.md.

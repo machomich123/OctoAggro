@@ -1,8 +1,8 @@
 ## Interface: 11200
 ## Title: OctoAggro
-## Notes: World-space aggro ring estimates and native body glow. Requires OctoAggroNative + ClassicAPI.
+## Notes: Native selection-ring radius estimates and native body glow. Requires OctoAggroNative + ClassicAPI.
 ## Author: Michael
-## Version: 0.2.0-test
+## Version: 0.3.0-test
 ## SavedVariablesPerCharacter: OctoAggroDB
 World.lua
 Settings.lua

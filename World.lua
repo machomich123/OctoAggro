@@ -1,6 +1,5 @@
-OctoAggroWorld={version="0.2.0-test",units={},glowing={},rings={},samples=64,maxRings=12}
+OctoAggroWorld={version="0.3.0-test",units={},glowing={},radii={}}
 local A=OctoAggroWorld
-local white="Interface\\Buttons\\WHITE8X8"
 function A.Call(fn,a,b,c,d)
   if type(fn)~="function" then return nil end
   local ok,x,y,z,w=pcall(fn,a,b,c,d)
@@ -31,16 +30,12 @@ function A.Radius(playerLevel,level,base)
 end
 function A.Message(s) if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage("|cffff8844OctoAggro:|r "..s) end end
 function A.BridgeReady()
-  return A.Call(OctoAggroNativeVersion)==1 and type(OctoAggroNativeSurface)=="function"
-    and type(OctoAggroNativeProject)=="function" and type(OctoAggroNativeGlow)=="function"
-    and type(OctoAggroNativeClear)=="function" and type(UnitPosition)=="function" and type(UnitGUID)=="function"
+  return A.Call(OctoAggroNativeVersion)==2 and type(OctoAggroNativeCircleRadius)=="function"
+    and type(OctoAggroNativeGlow)=="function" and type(OctoAggroNativeClear)=="function"
+    and type(UnitPosition)=="function" and type(UnitGUID)=="function"
 end
 function A.Clear()
-  A.Call(OctoAggroNativeClear); A.glowing={}; A.units={}; A.hover=nil; A.activeRings=0
-  for _,ring in ipairs(A.rings) do
-    for _,line in ipairs(ring.lines) do line:Hide() end
-    ring.id=nil;ring.points=nil
-  end
+  A.Call(OctoAggroNativeClear);A.glowing={};A.units={};A.hover=nil;A.radii={}
 end
 function A.Scan()
   if not A.db.enabled or not A.BridgeReady() then A.Clear();return end
@@ -86,67 +81,20 @@ function A.Scan()
     if b.id==hoverId and a.id~=hoverId then return false end
     return a.distance<b.distance
   end)
-  local index=0
+  local radii={}
   if A.db.rings then
     for _,u in ipairs(units) do
-      if u.radius and u.radius>0 and index<A.maxRings then
-        index=index+1
-        local ring=A.rings[index]
-        if not ring then
-          ring={lines={}};A.rings[index]=ring
-          for j=1,A.samples do
-            local line=A.layer:CreateTexture(nil,"ARTWORK")
-            line:SetTexture(white);line:SetHeight(2);line:SetVertexColor(1,0.12,0.02,0.85);line:Hide()
-            ring.lines[j]=line
-          end
-        end
-        if ring.id~=u.id or not ring.points or ring.radius~=u.radius or math.abs(ring.x-u.x)+math.abs(ring.y-u.y)>0.3 or GetTime()-ring.groundAt>0.5 then
-          ring.points={};ring.id=u.id;ring.x=u.x;ring.y=u.y;ring.radius=u.radius;ring.groundAt=GetTime()
-          for j=1,A.samples do
-            local angle=j*math.pi*2/A.samples
-            local x,y=u.x+math.cos(angle)*u.radius,u.y+math.sin(angle)*u.radius
-            local z=A.Call(OctoAggroNativeSurface,x,y,u.z)
-            if A.Finite(z) and math.abs(z-u.z)<=12 then ring.points[j]={x=x,y=y,z=z,visible=false} end
-          end
-        end
+      if u.radius and u.radius>0 then
+        radii[u.id]=u.radius;A.Call(OctoAggroNativeCircleRadius,u.id,u.radius)
       end
     end
   end
-  A.activeRings=index
-  for i=index+1,table.getn(A.rings) do for _,line in ipairs(A.rings[i].lines) do line:Hide() end end
-end
-function A.Render(checkVisibility)
-  if not A.db.enabled or not A.db.rings then return end
-  local width,height=UIParent:GetWidth(),UIParent:GetHeight()
-  for i=1,A.activeRings or 0 do
-    local ring=A.rings[i]
-    local projected={}
-    for j=1,A.samples do
-      local p=ring.points[j]
-      if p then
-        local x,y=A.Call(OctoAggroNativeProject,p.x,p.y,p.z,checkVisibility)
-        if checkVisibility then p.visible=x~=nil and y~=nil end
-        if p.visible and A.Finite(x) and A.Finite(y) then projected[j]={x=x*width,y=y*height} end
-      end
-    end
-    for j=1,A.samples do
-      local line=ring.lines[j];local a=projected[j];local b=projected[j==A.samples and 1 or j+1]
-      line:Hide()
-      if a and b then
-        local dx,dy=b.x-a.x,b.y-a.y
-        local len=math.sqrt(dx*dx+dy*dy)
-        if len>0.1 and len<300 and type(line.SetRotation)=="function" then
-          line:SetWidth(len+0.5);line:ClearAllPoints()
-          line:SetPoint("CENTER",UIParent,"BOTTOMLEFT",(a.x+b.x)/2,(a.y+b.y)/2)
-          line:SetRotation(math.atan2(dy,dx));line:Show()
-        end
-      end
-    end
-  end
+  for id in pairs(A.radii) do if not radii[id] then A.Call(OctoAggroNativeCircleRadius,id,0) end end
+  A.radii=radii
 end
 function A.Set(key,value)
   A.db[key]=value;A.db=A.Settings(A.db);OctoAggroDB=A.db;A.Clear()
-  if A.db.enabled then A.Scan();A.Render(true) end
+  if A.db.enabled then A.Scan() end
   if A.RefreshOptions then A.RefreshOptions() end
 end
 function A.Command(s)
@@ -159,8 +107,6 @@ function A.Command(s)
     A.Message("Observed NPCs: "..table.getn(A.units)..". Aggro and extra mobs are estimates.")
   else A.options:Show();A.RefreshOptions() end
 end
-A.layer=CreateFrame("Frame",nil,UIParent)
-A.layer:SetAllPoints(UIParent);A.layer:SetFrameStrata("BACKGROUND");A.layer:EnableMouse(false)
 local eventFrame=CreateFrame("Frame","OctoAggroWorldEvents")
 eventFrame:RegisterEvent("ADDON_LOADED");eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD");eventFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
 eventFrame:SetScript("OnEvent",function(self,ev,name)
@@ -168,17 +114,15 @@ eventFrame:SetScript("OnEvent",function(self,ev,name)
   if ev=="ADDON_LOADED" and name=="OctoAggro" then
     A.db=A.Settings(OctoAggroDB);OctoAggroDB=A.db;A.Clear();A.BuildOptions();A.ready=true
     SLASH_OCTOAGGRO1="/oa";SLASH_OCTOAGGRO2="/octoaggro";SlashCmdList.OCTOAGGRO=A.Command
-    A.Message("World test 0.2.0. /oa settings. Rings and extra mobs are estimates.")
+    A.Message("Native-ring test 0.3.0. /oa settings. Rings and extra mobs are estimates.")
     if not A.BridgeReady() then A.Message("Rendering bridge missing. Run the supplied installer with WoW closed, then restart. No substitute radar is shown.") end
   elseif ev=="PLAYER_LEAVING_WORLD" then A.inWorld=false;A.Clear()
-  elseif ev=="PLAYER_ENTERING_WORLD" then A.inWorld=true;if A.ready then A.Scan();A.Render(true) end end
+  elseif ev=="PLAYER_ENTERING_WORLD" then A.inWorld=true;if A.ready then A.Scan() end end
 end)
-local scan,render,visibility=0,0,0
+local scan=0
 eventFrame:SetScript("OnUpdate",function(self,dt)
-  dt=dt or arg1 or 0
   if not A.ready or not A.inWorld or not A.db.enabled then return end
-  scan=scan+dt;render=render+dt;visibility=visibility+dt
-  if scan>=0.15 then scan=0;A.Scan() end
-  if render>=0.05 then render=0;local check=visibility>=0.15;A.Render(check);if check then visibility=0 end end
+  scan=scan+(dt or arg1 or 0)
+  if scan>=0.25 then scan=0;A.Scan() end
 end)
 A.events=eventFrame

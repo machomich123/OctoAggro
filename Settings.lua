@@ -14,10 +14,10 @@ function A.BuildOptions()
   p:SetScript("OnDragStart",function() p:StartMoving() end);p:SetScript("OnDragStop",function() p:StopMovingOrSizing() end)
   p:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=16,edgeSize=16,insets={left=4,right=4,top=4,bottom=4}})
   p:SetBackdropColor(0.05,0.05,0.06,0.96)
-  label(p,"OctoAggro - world rings and body glow",-20)
+  label(p,"OctoAggro - native ring and body glow",-20)
   label(p,"Experimental: radii and extra mobs are estimates.\nNo server-confirmed pull links or millimetre accuracy.",-55)
   A.checks={}
-  local rows={{"enabled","Enable OctoAggro"},{"rings","Show ground rings"},{"glow","Body glow on hover and possible extras"}}
+  local rows={{"enabled","Enable OctoAggro"},{"rings","Enlarge the existing selection ring"},{"glow","Body glow on hover and possible extras"}}
   for i,row in ipairs(rows) do
     local key=row[1];local y=-110-(i-1)*35
     local c=CreateFrame("CheckButton","OctoAggroWorldOption"..key,p,"UICheckButtonTemplate")
@@ -33,7 +33,7 @@ function A.BuildOptions()
     button(p,"-",205,y,function() A.Set(key,A.db[key]-5) end)
     button(p,"+",320,y,function() A.Set(key,A.db[key]+5) end)
   end
-  label(p,"Up to 12 observed NPC rings within 60 yards.\nGround clipping and glow need live-game verification.\nNo radar, HUD or nameplate decorations.",-318)
+  label(p,"The game decides when its existing ring is shown.\nNo extra ring is created for unselected NPCs.\nSize and performance need live-game verification.",-318)
   button(p,"Status",18,-371,function() A.Command("status") end)
   button(p,"Close",310,-371,function() p:Hide() end)
   A.options=p;table.insert(UISpecialFrames,"OctoAggroSettings");p:Hide();A.RefreshOptions()
