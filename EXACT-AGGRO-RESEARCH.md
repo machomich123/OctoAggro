@@ -1,6 +1,25 @@
 # Exact selected-NPC aggro range — investigation, 2026-10-13
 
-## Finding
+## Updated result for 0.5.0
+
+The deeper GitHub investigation found a concrete, usable template dataset and
+automatic model. The old blanket base 20 was wrong for the reference NPCs in the
+user's example: Tortoise/Turtle creature 3101 (Vile Familiar) and 3102 (Felstalker)
+use 12. Many other creatures use 18, so swapping one generic constant is not enough.
+The addon now looks up 12,751 named templates, uses live levels and folds visible
+fixed-magnitude detection auras from the installed client's Spell.dbc. See
+DATA-SOURCES.md for pinned source, license, hash, formulas and limitations.
+
+The historical findings below about missing *authoritative OctoWoW* data still
+apply, but they no longer describe the complete updated calculation. Confirmed
+reference values have replaced the earlier broad base assumption. Unknown
+templates and unavailable/complex aura inputs are explicitly identified.
+
+Open server implementations share much of this logic but have differences;
+neither their configuration nor template values prove OctoWoW's deployed state.
+The updated prediction is automatic and source-derived, not millimetre-verified.
+
+## Earlier investigation — before the automatic template model
 
 No authoritative OctoWoW per-NPC/player aggro-range feed was found in the
 inspected client APIs, public NPC page or public source search. The current

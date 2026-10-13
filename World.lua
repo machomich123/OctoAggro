@@ -1,4 +1,4 @@
-OctoAggroWorld={version="0.4.0-test",units={},glowing={},radii={},maxAlways=12}
+OctoAggroWorld={version="0.5.0-test",units={},glowing={},radii={},maxAlways=12}
 local A=OctoAggroWorld
 function A.Call(fn,a,b,c,d)
   if type(fn)~="function" then return nil end
@@ -8,11 +8,14 @@ end
 function A.Finite(n) return type(n)=="number" and n==n and math.abs(n)<50000 end
 function A.Settings(saved)
   if type(saved)~="table" then saved={} end
-  local out={enabled=true,rings=true,glow=true,always=false,inside=false,base=20,assist=10}
+  local out={enabled=true,rings=true,glow=true,always=false,inside=false,base=18,assist=10,rate=1}
   for key,value in pairs(out) do
     if type(saved[key])==type(value) and (type(value)=="boolean" or A.Finite(saved[key])) then out[key]=saved[key] end
   end
   out.base=math.max(0,math.min(60,out.base));out.assist=math.max(0,math.min(40,out.assist))
+  out.rate=math.max(0,math.min(2,out.rate))
+  if saved.modelVersion~=1 then out.base=18;out.rate=1 end
+  out.modelVersion=1
   return out
 end
 function A.Position(token)
@@ -22,11 +25,6 @@ end
 function A.Distance(a,b)
   if a.map~=b.map then return nil end
   return math.sqrt((a.x-b.x)^2+(a.y-b.y)^2+(a.z-b.z)^2)
-end
-function A.Radius(playerLevel,level,base)
-  if not A.Finite(playerLevel) or not A.Finite(level) or playerLevel<1 or level<1 then return nil end
-  if base==0 then return 0 end
-  return math.max(math.min(5,base),base-math.max(-25,playerLevel-level))
 end
 function A.Message(s) if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage("|cffff8844OctoAggro:|r "..s) end end
 function A.BridgeReady()
@@ -43,6 +41,7 @@ function A.Scan()
   local player=A.Position("player")
   if not player then A.Clear();return end
   local units,seen={},{}
+  local playerModel=OctoAggroModel.Player()
   local function add(token)
     if not A.Call(UnitExists,token) or not A.Call(UnitCanAttack,"player",token)
       or A.Call(UnitIsPlayer,token) or A.Call(UnitIsDeadOrGhost,token) or A.Call(UnitIsDead,token) then return end
@@ -56,7 +55,8 @@ function A.Scan()
     local reaction=A.Call(UnitReaction,"player",token)
     pos.hostile=type(reaction)=="number" and reaction<=3
     if pos.hostile then
-      pos.radius=A.Radius(A.Call(UnitLevel,"player"),A.Call(UnitLevel,token),A.db.base)
+      pos.radius,pos.model=OctoAggroModel.ForUnit(token,playerModel,A.db)
+      if pos.radius and pos.radius>60 then pos.radius=60;pos.model.renderCapped=true end
     end
     table.insert(units,pos)
   end
@@ -138,11 +138,14 @@ function A.Command(s)
     if not A.Call(UnitExists,"target") then A.Message("Select an NPC first.");return end
     local reaction=A.Call(UnitReaction,"player","target")
     if type(reaction)~="number" or reaction>3 or A.Call(UnitIsPlayer,"target") then A.Message("Selected unit is not a red hostile NPC.");return end
-    local radius=A.Radius(A.Call(UnitLevel,"player"),A.Call(UnitLevel,"target"),A.db.base)
+    local radius,model=OctoAggroModel.ForUnit("target",OctoAggroModel.Player(),A.db)
     local name=A.Call(UnitName,"target") or "Unknown"
     local id=A.Call(UnitCreatureID,"target")
     A.Message(name..(id and (" (NPC "..id..")") or "")..": "..(radius and string.format("estimated %.1f yards",radius) or "radius unknown"))
-    A.Message("Basis: base "..A.db.base.." + level adjustment. Server detection distance, aura modifiers and assistance rules are unavailable.")
+    A.Message("Basis: "..model.source.."; base "..model.base.."; rate "..model.rate)
+    if radius then A.Message("Aura adjustment: NPC "..model.mobModifier..", player "..model.playerModifier..(model.auraUnknown and " (incomplete aura information)" or "")) end
+    if model.reason then A.Message(model.reason) end
+    if radius and radius>60 then A.Message("Ring drawing is capped at 60 yards; calculated radius is larger.") end
   else A.options:Show();A.RefreshOptions() end
 end
 local eventFrame=CreateFrame("Frame","OctoAggroWorldEvents")
@@ -152,7 +155,7 @@ eventFrame:SetScript("OnEvent",function(self,ev,name)
   if ev=="ADDON_LOADED" and name=="OctoAggro" then
     A.db=A.Settings(OctoAggroDB);OctoAggroDB=A.db;A.Clear();A.BuildOptions();A.ready=true
     SLASH_OCTOAGGRO1="/oa";SLASH_OCTOAGGRO2="/octoaggro";SlashCmdList.OCTOAGGRO=A.Command
-    A.Message("Native-ring test 0.4.0. /oa settings. Radius is estimated; circle overlap is not a confirmed pull.")
+    A.Message("Native-ring test 0.5.0. Automatic NPC templates + live levels/auras; OctoWoW parity remains unverified.")
     if not A.BridgeReady() then A.Message("Rendering bridge missing. Run the supplied installer with WoW closed, then restart. No substitute radar is shown.") end
   elseif ev=="PLAYER_LEAVING_WORLD" then A.inWorld=false;A.Clear()
   elseif ev=="PLAYER_ENTERING_WORLD" then A.inWorld=true;if A.ready then A.Scan() end end

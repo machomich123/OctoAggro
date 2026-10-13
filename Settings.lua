@@ -29,14 +29,14 @@ function A.BuildOptions()
     c:SetScript("OnClick",function() A.Set(key,not A.db[key]) end);A.checks[key]=c
   end
   A.values={}
-  local numbers={{"base","Base aggro estimate",20},{"assist","Possible-assist distance",10}}
+  local numbers={{"base","Fallback base for unknown NPCs",18},{"assist","Possible-assist distance",10}}
   for i,row in ipairs(numbers) do
     local key=row[1];local y=-298-(i-1)*35
     label(p,row[2],y-5);A.values[key]=label(p,"",y-5);A.values[key]:ClearAllPoints();A.values[key]:SetPoint("TOPLEFT",p,"TOPLEFT",278,y-5);A.values[key]:SetWidth(60)
     button(p,"-",205,y,function() A.Set(key,A.db[key]-5) end)
     button(p,"+",320,y,function() A.Set(key,A.db[key]+5) end)
   end
-  label(p,"Always-visible mode: up to 12 observed circles.\nOverlap highlight means inside a displayed estimate,\nnot a guaranteed extra pull. /oa target explains radius.",-388)
+  label(p,"Automatic NPC range, level and visible aura model.\nUp to 12 circles; overlap is not a guaranteed pull.\nTarget shows source / missing inputs. Octo parity unknown.",-388)
   button(p,"Target",18,-441,function() A.Command("target") end)
   button(p,"Close",310,-441,function() p:Hide() end)
   A.options=p;table.insert(UISpecialFrames,"OctoAggroSettings");p:Hide();A.RefreshOptions()

@@ -12,7 +12,7 @@ if(-not (Test-Path -LiteralPath $loader)) {throw 'VanillaFixes dlls.txt is requi
 $entry='Interface/AddOns/OctoAggro/native/OctoAggroNative.dll'
 $previous=Get-Content -LiteralPath $loader
 $target=Join-Path $game 'Interface\AddOns\OctoAggro'
-$files=@('OctoAggro.toc','World.lua','Settings.lua','README.md','LICENSE','native\OctoAggroNative.dll')
+$files=@('OctoAggro.toc','NPCData.lua','AggroModel.lua','World.lua','Settings.lua','README.md','LICENSE','native\OctoAggroNative.dll')
 foreach($file in $files){if(-not (Test-Path -LiteralPath (Join-Path $repo $file) -PathType Leaf)){throw "Missing: $file"}}
 $backup=Join-Path $game ('AddonBackups\OctoAggro-world-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $backup -Force | Out-Null

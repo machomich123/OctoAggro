@@ -1,4 +1,24 @@
-# OctoAggro 0.4.0 verification — 2026-10-13
+# OctoAggro 0.5.0 verification — 2026-10-13
+
+Current model verification:
+
+- Parsed 12,751 upstream template rows. Independently fetched the pinned source
+  and checked its SHA-256 against the parsed source. UTF-8 deterministic rebuild
+  was run twice with identical generated output.
+- Eight automatic-model groups passed in actual Lua 5.0.3, including loading the
+  entire generated dataset, Vile Familiar 12-yard base, level changes, range floors,
+  level-difference cap, multiplier, Soothe, player modifiers, stacks, ID/name reuse,
+  missing aura APIs, random magnitudes and stealth.
+- Sixteen retained native-ring Lua groups passed with the new model loaded.
+- Installed ClassicAPI binary contains the names of GetUnitAuras,
+  GetSpellEffectInfo, GetSpellDescription and UnitCreatureID. String presence is
+  not live-registration or observed-aura proof.
+- Native DLL code and protocol are unchanged from 0.4.0. No additional native
+  drawing hook or terrain tracing was added for the automatic calculation.
+- Source-derived calculations do not verify OctoWoW template/config parity.
+  Actual range and live aura behavior still need a controlled game test.
+
+Earlier drawing verification and history:
 
 The previous 0.2.0 build failed the user's live visual/performance test: reported
 extreme lag, broken rings and ground clipping. That is the concrete reason for
@@ -40,3 +60,5 @@ research is in EXACT-AGGRO-RESEARCH.md.
 Installed six hash-verified files. Snapshot: W:\Games\Octowow\AddonBackups\OctoAggro-world-20261013-130229-169. Existing loader entries retained; one bridge entry. No game session launched.
 
 0.4.0 installed: six hash-verified runtime files; snapshot W:\Games\Octowow\AddonBackups\OctoAggro-world-20261013-154046-694. Existing loader retained. No game controlled or launched.
+
+0.5.0 deployment: 8 hash-verified runtime files. Install/restore exercised on a disposable client copy. Backup: W:\Games\Octowow\AddonBackups\OctoAggro-world-20261013-161604-360. No game launched or controlled.

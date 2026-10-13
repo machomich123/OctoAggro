@@ -10,7 +10,7 @@ function OctoAggroNativeGlow(id,on) glows[id]=on or nil;return 1 end
 function OctoAggroNativeCircleRadius(id,radius) circlesCalled=circlesCalled+1;radii[id]=radius>0 and radius or nil;return 1 end
 function OctoAggroNativeProject() error("Rejected projection path called") end
 function OctoAggroNativeSurface() error("Rejected tracing path called") end
-dofile("World.lua");dofile("Settings.lua")
+dofile("NPCData.lua");dofile("AggroModel.lua");dofile("World.lua");dofile("Settings.lua")
 local A=OctoAggroWorld
 local count=0
 local function check(name,f)f();count=count+1;print("PASS "..name)end
@@ -27,13 +27,13 @@ end)
 check("no custom ring textures, projection or terrain tracing",function()
  assert(texturesMade==0);assert(A.layer==nil and A.Render==nil);assert(frames.OctoAggroRadar==nil)
 end)
-check("native radius request is a world radius",function() assert(radii[a.id]==20 and radii[b.id]==20) end)
+check("native radius request is a world radius",function() assert(radii[a.id]==18 and radii[b.id]==18) end)
 check("body glow requests still cover hover and nearby candidate",function()
  assert(glows[a.id] and glows[b.id]);assert(not glows[far.id])
 end)
 check("radius and glow switches are independent",function()
  A.Set("rings",false);assert(next(radii)==nil and glows[a.id])
- A.Set("rings",true);A.Set("glow",false);assert(next(glows)==nil and radii[a.id]==20);A.Set("glow",true)
+ A.Set("rings",true);A.Set("glow",false);assert(next(glows)==nil and radii[a.id]==18);A.Set("glow",true)
 end)
 check("unknown level and neutral units lose radius requests",function()
  a.level=-1;A.Scan();assert(radii[a.id]==nil);a.level=10
@@ -59,11 +59,11 @@ check("old protocol fails closed",function()
 end)
 check("world exit clears both request sets",function()
  fire("PLAYER_LEAVING_WORLD");assert(next(radii)==nil and next(glows)==nil)
- fire("PLAYER_ENTERING_WORLD");assert(radii[a.id]==20)
+ fire("PLAYER_ENTERING_WORLD");assert(radii[a.id]==18)
 end)
 check("always-visible button works without target or hover",function()
  aliases.target=nil;aliases.mouseover=nil
- A.checks.always:GetScript("OnClick")();assert(A.db.always and alwaysRequested and radii[a.id]==20)
+ A.checks.always:GetScript("OnClick")();assert(A.db.always and alwaysRequested and radii[a.id]==18)
  A.Set("rings",false);assert(not alwaysRequested);A.Set("rings",true);assert(alwaysRequested)
  A.Set("always",false);assert(not alwaysRequested);aliases.target=a.id
 end)
@@ -71,7 +71,7 @@ check("inside-circle button is independent and uses source radius",function()
  A.Set("glow",false);b.x=35
  A.checks.inside:GetScript("OnClick")();assert(A.db.inside and glows[b.id] and not glows[far.id])
  local neutral=mob("0x0000000000000004",25,0,10,4);A.Scan();assert(not glows[neutral.id])
- b.x=40;A.Scan();assert(glows[b.id]);b.x=40.1;A.Scan();assert(not glows[b.id])
+ b.x=38;A.Scan();assert(glows[b.id]);b.x=38.1;A.Scan();assert(not glows[b.id])
  b.x=35;b.z=20;A.Scan();assert(not glows[b.id]);b.z=0
  A.Set("inside",false);assert(next(glows)==nil);b.x=25;world[neutral.id]=nil
 end)
@@ -86,6 +86,6 @@ check("always circles are capped at twelve",function()
 end)
 check("target inspection explains estimated basis",function()
  aliases.target=a.id;A.Command("target")
- assert(string.find(messages[table.getn(messages)],"unavailable",1,true))
+ assert(string.find(messages[table.getn(messages)],"incomplete",1,true))
 end)
 print("PASS "..count.." native-ring Lua groups; live_world_tested=false")

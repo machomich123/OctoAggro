@@ -1,4 +1,15 @@
-# OctoAggro 0.4.0 — native selection ring test
+# OctoAggro 0.5.0 — automatic per-NPC aggro model
+
+New: automatic lookup of 12,751 named NPC templates from the pinned Tortoise/Turtle
+reference database, replacing the blanket base of 20 yards. Live levels and
+visible simple detection-range aura effects are folded into the server formula.
+Unknown IDs/name mismatches use fallback 18; unknown live levels give no radius.
+Existing saved generic bases migrate automatically. Base +/- now changes only
+the unknown-NPC fallback, not the automatically selected template.
+
+`/oa target` explains source, NPC base, aura adjustment and missing inputs.
+See DATA-SOURCES.md. OctoWoW's deployed template/configuration parity is not
+confirmed. Native drawing code is unchanged from 0.4.0.
 
 This build enlarges the **existing game selection ring**. The rejected 0.2.0
 custom world-line renderer has been removed, including its textures, camera
@@ -29,8 +40,8 @@ switchable. Actual native colour and appearance still need live verification.
 
 ## Accuracy and live-test boundary
 
-The aggro radius remains an estimate: default 20 game yards, adjusted for level
-difference using a VMaNGOS reference formula. Possible assists remain a geometric
+The aggro radius remains a source-derived prediction: per-NPC reference base,
+live level difference and visible simple aura modifiers. Possible assists remain a geometric
 heuristic with default radius 10 yards. Actual OctoWoW server detection, auras,
 linked packs and scripts are not available. No complete pull graph or millimetre
 accuracy is claimed. Unknown hostile levels and neutral mobs are not assigned
@@ -60,7 +71,7 @@ Close WoW and run from this repository folder:
 .\tools\Install.ps1 -GamePath 'W:\Games\Octowow'
 ```
 
-The installer backs up the current addon and dlls.txt, copies six hash-verified
+The installer backs up the current addon and dlls.txt, copies eight hash-verified
 files and ensures exactly one loader entry:
 
 ```text
