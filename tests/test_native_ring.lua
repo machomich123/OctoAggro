@@ -3,7 +3,12 @@ glows={};radii={};circlesCalled=0;texturesMade=0;alwaysRequested=false
 local methods=getmetatable(UIParent).__index
 local oldTexture=methods.CreateTexture
 function methods:CreateTexture(name) texturesMade=texturesMade+1;return oldTexture(self,name) end
-function OctoAggroNativeVersion() return 3 end
+function OctoAggroNativeVersion() return 4 end
+function OctoAggroNativeCreatures()
+ local ids={}
+ for id,u in pairs(world) do if id~="player" and u.loaded~=false then table.insert(ids,id) end end
+ return ids
+end
 function OctoAggroNativeClear() glows={};radii={};alwaysRequested=false;return 1 end
 function OctoAggroNativeAlwaysCircles(on) alwaysRequested=on;return 1 end
 function OctoAggroNativeGlow(id,on) glows[id]=on or nil;return 1 end
@@ -20,7 +25,7 @@ local a=mob("0x0000000000000001",20,0)
 local b=mob("0x0000000000000002",25,0)
 local far=mob("0x0000000000000003",50,0)
 aliases.mouseover=a.id;aliases.target=a.id
-check("actual Lua 5.0 startup with protocol 3",function()
+check("actual Lua 5.0 startup with protocol 4",function()
  fire("ADDON_LOADED","OctoAggro");fire("PLAYER_ENTERING_WORLD")
  assert(A.ready and A.BridgeReady());assert(table.getn(A.units)==3)
 end)
@@ -88,4 +93,14 @@ check("target inspection explains estimated basis",function()
  aliases.target=a.id;A.Command("target")
  assert(string.find(messages[table.getn(messages)],"incomplete",1,true))
 end)
+
+
+check("multiple loaded NPCs without nameplates or selection",function()
+ for i=1,25 do world[string.format("0x%016x",i+100)]=nil end
+ aliases.mouseover=nil;aliases.target=nil;A.Set("always",true)
+ a.plate=false;b.plate=false;far.plate=false
+ A.Scan();assert(radii[a.id] and radii[b.id] and radii[far.id] and alwaysRequested)
+ b.loaded=false;A.Scan();assert(radii[b.id]==nil);b.loaded=true
+end)
+
 print("PASS "..count.." native-ring Lua groups; live_world_tested=false")

@@ -1,4 +1,4 @@
-OctoAggroWorld={version="0.5.0-test",units={},glowing={},radii={},maxAlways=12}
+OctoAggroWorld={version="0.6.0-test",units={},glowing={},radii={},maxAlways=12}
 local A=OctoAggroWorld
 function A.Call(fn,a,b,c,d)
   if type(fn)~="function" then return nil end
@@ -28,7 +28,7 @@ function A.Distance(a,b)
 end
 function A.Message(s) if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage("|cffff8844OctoAggro:|r "..s) end end
 function A.BridgeReady()
-  return A.Call(OctoAggroNativeVersion)==3 and type(OctoAggroNativeCircleRadius)=="function"
+  return A.Call(OctoAggroNativeVersion)==4 and type(OctoAggroNativeCreatures)=="function" and type(OctoAggroNativeCircleRadius)=="function"
     and type(OctoAggroNativeAlwaysCircles)=="function"
     and type(OctoAggroNativeGlow)=="function" and type(OctoAggroNativeClear)=="function"
     and type(UnitPosition)=="function" and type(UnitGUID)=="function"
@@ -61,6 +61,8 @@ function A.Scan()
     table.insert(units,pos)
   end
   add("mouseover");add("target")
+  local loaded=A.Call(OctoAggroNativeCreatures)
+  if type(loaded)=="table" then for _,id in ipairs(loaded) do add(id) end end
   if C_NamePlate and type(C_NamePlate.GetNamePlateGUIDs)=="function" then
     local ids=A.Call(C_NamePlate.GetNamePlateGUIDs)
     if type(ids)=="table" then for _,id in ipairs(ids) do add(id) end end
@@ -155,7 +157,7 @@ eventFrame:SetScript("OnEvent",function(self,ev,name)
   if ev=="ADDON_LOADED" and name=="OctoAggro" then
     A.db=A.Settings(OctoAggroDB);OctoAggroDB=A.db;A.Clear();A.BuildOptions();A.ready=true
     SLASH_OCTOAGGRO1="/oa";SLASH_OCTOAGGRO2="/octoaggro";SlashCmdList.OCTOAGGRO=A.Command
-    A.Message("Native-ring test 0.5.0. Automatic NPC templates + live levels/auras; OctoWoW parity remains unverified.")
+    A.Message("Native-ring test 0.6.0. Automatic NPC templates + live levels/auras; OctoWoW parity remains unverified.")
     if not A.BridgeReady() then A.Message("Rendering bridge missing. Run the supplied installer with WoW closed, then restart. No substitute radar is shown.") end
   elseif ev=="PLAYER_LEAVING_WORLD" then A.inWorld=false;A.Clear()
   elseif ev=="PLAYER_ENTERING_WORLD" then A.inWorld=true;if A.ready then A.Scan() end end

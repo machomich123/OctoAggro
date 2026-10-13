@@ -45,6 +45,15 @@ int main(){
   alwaysCircles=false;ExtraCircle(obj.data(),0,now);assert(calls==before+1);
   alwaysCircles=true;alwaysUntil=now-1;ExtraCircle(obj.data(),0,now);assert(calls==before+1);
   alwaysUntil=now+750;circles[id].until=now-1;ExtraCircle(obj.data(),0,now);assert(calls==before+1);
+  alwaysUntil=now+750;circles[id]={20,now+750};
+  auto obj2=obj;auto desc2=desc;uint64_t id2=id+1;
+  std::memcpy(desc2.data(),&id2,8);
+  *reinterpret_cast<unsigned char**>(obj2.data()+8)=desc2.data();
+  circles[id2]={20,now+750};const unsigned pairBefore=calls;
+  ExtraCircle(obj.data(),0,now);ExtraCircle(obj2.data(),0,now);
+  assert(calls==pairBefore+2);
+  assert(*reinterpret_cast<float*>(obj2.data()+0xCF0)==1.75f);
+  std::puts("PASS two different native NPC circles dispatched in the same update with size restoration.");
   std::puts("PASS actual circle hook: scaled radius during draw; all object and descriptor bytes restored; expired/missing/invalid-scale requests pass through; GUID validation.");
   std::puts("PASS always-visible native dispatch: draws unselected requested unit; skips selected duplicate; disabled and expired modes/requests do not draw.");
 }

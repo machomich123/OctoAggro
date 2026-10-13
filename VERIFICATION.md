@@ -62,3 +62,14 @@ Installed six hash-verified files. Snapshot: W:\Games\Octowow\AddonBackups\OctoA
 0.4.0 installed: six hash-verified runtime files; snapshot W:\Games\Octowow\AddonBackups\OctoAggro-world-20261013-154046-694. Existing loader retained. No game controlled or launched.
 
 0.5.0 deployment: 8 hash-verified runtime files. Install/restore exercised on a disposable client copy. Backup: W:\Games\Octowow\AddonBackups\OctoAggro-world-20261013-161604-360. No game launched or controlled.
+
+## 0.6.0
+
+Built the x86 DLL successfully. Passed 17 Lua 5.0 ring/settings groups, including
+three simultaneous loaded NPCs without nameplates/target/mouseover and stale
+request removal, and all 8 automatic-model groups. Production native draw and
+always-dispatch tests pass. Actual WoW.exe disassembly at 0x468380 confirms the
+fastcall enumeration callback/context/GUID convention and zero return stop.
+No live game test has been performed for this version. This repairs a confirmed
+observer limitation; any remaining native simultaneous-drawing issue requires
+in-game reproduction. Aggro accuracy has not been measured in millimetres.

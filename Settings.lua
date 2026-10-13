@@ -18,7 +18,7 @@ function A.BuildOptions()
   label(p,"Experimental: radii and extra mobs are estimates.\nNo server-confirmed pull links or millimetre accuracy.",-55)
   A.checks={}
   local rows={{"enabled","Enable OctoAggro"},{"rings","Show aggro radius estimates"},
-    {"always","Keep circles visible without selecting"},
+    {"always","All nearby circles (any camera direction)"},
     {"inside","Highlight red enemies inside circles"},
     {"glow","Body glow on hover / target and close enemies"}}
   for i,row in ipairs(rows) do

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 #include <unordered_map>
 #include "vendor/minhook/include/MinHook.h"
 
@@ -93,7 +94,28 @@ void glow(void* obj,bool enable){
 }
 void clear(){for(const auto& entry:owned)glow(object(entry.first),false);owned.clear();circles.clear();alwaysCircles=false;}
 int missing(L l){settop(l,0);pushnil(l);return 1;}
-int __fastcall Version(L){L l=context();settop(l,0);pushnumber(l,3);return 1;}
+int __fastcall Version(L){L l=context();settop(l,0);pushnumber(l,4);return 1;}
+// Enumerate locally loaded creatures, independently of nameplates/camera.
+// Verified ClassicAPI ABI: callback context in ECX, GUID on stack.
+using EnumCallback=int(__fastcall*)(void*,void*,uint64_t);
+using EnumObjects=int(__fastcall*)(EnumCallback,void*);
+struct ListContext {L lua;unsigned count;};
+int __fastcall ListCreature(void* raw,void*,uint64_t guid){
+  auto& scan=*static_cast<ListContext*>(raw);
+  if(scan.count>=1024)return 0;
+  if(static_cast<uint16_t>(guid>>48)!=0xF130)return 1;
+  char text[19];std::snprintf(text,sizeof(text),"0x%08X%08X",static_cast<uint32_t>(guid>>32),static_cast<uint32_t>(guid));
+  pushnumber(scan.lua,++scan.count);
+  at<void(__fastcall*)(L,const char*)>(0x6F3890)(scan.lua,text);
+  at<void(__fastcall*)(L,int)>(0x6F3E20)(scan.lua,-3);
+  return 1;
+}
+int __fastcall Creatures(L){
+  L l=context();settop(l,0);
+  at<void(__fastcall*)(L)>(0x6F3C90)(l);
+  if(ready()){ListContext scan{l,0};at<EnumObjects>(0x468380)(ListCreature,&scan);}
+  return 1;
+}
 int __fastcall Always(L){
   L l=context();if(type(l,1)!=1)return missing(l);
   alwaysCircles=boolean(l,1)!=0;alwaysUntil=GetTickCount()+750;
@@ -128,6 +150,7 @@ void __fastcall RegisterHook(const char* name,CFn function){
   if(!registering && name && !std::strcmp(name,"UnitXP")){
     registering=true;clear();
     registerOriginal("OctoAggroNativeVersion",Version);
+    registerOriginal("OctoAggroNativeCreatures",Creatures);
     registerOriginal("OctoAggroNativeGlow",Glow);
     registerOriginal("OctoAggroNativeClear",Clear);
     registerOriginal("OctoAggroNativeCircleRadius",CircleRadius);

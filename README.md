@@ -9,7 +9,7 @@ the unknown-NPC fallback, not the automatically selected template.
 
 `/oa target` explains source, NPC base, aura adjustment and missing inputs.
 See DATA-SOURCES.md. OctoWoW's deployed template/configuration parity is not
-confirmed. Native drawing code is unchanged from 0.4.0.
+confirmed. The protocol-4 bridge now enumerates loaded creatures directly, independently of camera-facing nameplates.
 
 This build enlarges the **existing game selection ring**. The rejected 0.2.0
 custom world-line renderer has been removed, including its textures, camera
@@ -25,8 +25,8 @@ handles its texture, position, camera and ground geometry. The original input
 is restored byte-for-byte on return. No model-scale, bounding-radius descriptor,
 combat-reach descriptor or targeting changes are made by this hook.
 
-**Always-visible circles** is a separate in-game checkbox. When enabled, the
-bridge calls the same native circle drawer for up to 12 observed red NPCs during
+**All nearby circles (any camera direction)** is a separate in-game checkbox. When enabled, the
+bridge calls the same native circle drawer for up to 12 nearby loaded red NPCs during
 the engine visual-update stage, without selecting them. Selected NPCs are not
 drawn twice. When disabled, only the normal game selection ring is enlarged.
 The normal ring texture and colour are retained. Moving and rotating do not
@@ -129,3 +129,18 @@ Client-call conventions were checked against the inspected executable and
 [ClassicAPI](https://github.com/brues-code/ClassicAPI). The aggro formula remains
 a reference from [VMaNGOS](https://github.com/vmangos/core/blob/development/src/game/Objects/Creature.cpp),
 not proof of OctoWoW server rules. See VERIFICATION.md.
+
+## 0.6.0 visibility repair
+
+The earlier observer used nameplates, target and mouseover. Saved always-mode
+could therefore be enabled while NPCs without a nameplate were omitted.
+Protocol 4 adds OctoAggroNativeCreatures: the actual loaded-object enumerator
+at 0x468380, filtered to creature GUIDs, with a 1024-entry bound and login guard.
+Lua filters alive attackable NPCs within 60 yards and requests up to 12 rings.
+Off-screen NPCs are included; their circle appears when the camera turns toward
+them. This does not draw off-screen objects over the screen or through terrain.
+The existing persisted always switch is retained with a clearer label.
+
+There is no arbitrary millimetre offset. Native ring input remains radius/scale
+without decimal rounding. Its feathered texture is not an exact measuring edge;
+server-template parity, hidden auras and server sampling remain unverified.
