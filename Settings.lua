@@ -14,13 +14,13 @@ function A.BuildOptions()
   p:SetScript("OnDragStart",function() p:StartMoving() end);p:SetScript("OnDragStop",function() p:StopMovingOrSizing() end)
   p:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=16,edgeSize=16,insets={left=4,right=4,top=4,bottom=4}})
   p:SetBackdropColor(0.05,0.05,0.06,0.96)
-  label(p,"OctoAggro - native ring and body glow",-20)
+  label(p,"OctoAggro - Vanilla overhead skulls",-20)
   label(p,"Experimental: radii and extra mobs are estimates.\nNo server-confirmed pull links or millimetre accuracy.",-55)
   A.checks={}
   local rows={{"enabled","Enable OctoAggro"},{"rings","Show aggro radius estimates"},
     {"always","All nearby circles (any camera direction)"},
-    {"inside","Highlight red enemies inside circles"},
-    {"glow","Body glow on hover / target and close enemies"}}
+    {"skulls","Skulls on target and possible extra enemies"},
+    {"glow","Legacy body glow (optional)"}}
   for i,row in ipairs(rows) do
     local key=row[1];local y=-110-(i-1)*35
     local c=CreateFrame("CheckButton","OctoAggroWorldOption"..key,p,"UICheckButtonTemplate")

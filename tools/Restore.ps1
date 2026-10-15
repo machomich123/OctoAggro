@@ -7,7 +7,8 @@ $target=[IO.Path]::GetFullPath((Join-Path $game 'Interface\AddOns\OctoAggro'))
 if($target -ne $evidence.Target){throw 'Backup belongs to another installation.'}
 if(-not $target.StartsWith($game.TrimEnd('\')+'\Interface\AddOns\',[StringComparison]::OrdinalIgnoreCase)){throw 'Target is outside the addon directory.'}
 $exe=Join-Path $game 'WoW.exe'
-if(Get-CimInstance Win32_Process -Filter "name='WoW.exe'" | Where-Object {$_.ExecutablePath -eq $exe}){throw 'Close WoW before restoring.'}
+if(Get-Process -Name WoW -ErrorAction SilentlyContinue){throw 'Close WoW before restoring.'}
+if(Get-CimInstance Win32_Process -Filter "name='WoW.exe'" | Where-Object {-not $_.ExecutablePath -or $_.ExecutablePath -eq $exe}){throw 'Close WoW before restoring.'}
 $loader=Join-Path $game 'dlls.txt'
 if((Get-FileHash -LiteralPath $loader).Hash -ne $evidence.LoaderHash){throw 'dlls.txt changed after installation; automatic restore refuses to overwrite it.'}
 $files=Get-ChildItem -LiteralPath $target -Recurse -File -Force

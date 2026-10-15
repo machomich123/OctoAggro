@@ -18,6 +18,8 @@ function methods:SetChecked(value) self.checked=value end
 function methods:GetChecked() return self.checked end
 function methods:GetFrameLevel() return self.level or 1 end
 function methods:SetFrameLevel(n) self.level=n end
+function methods:GetWidth() return self.width or 1000 end
+function methods:GetHeight() return self.height or 800 end
 function methods:GetCenter() return 500,400 end
 function methods:AddMessage(m) table.insert(messages,m) end
 function methods:SetOwner(owner) self.owner=owner end

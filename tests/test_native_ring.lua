@@ -15,6 +15,7 @@ function OctoAggroNativeGlow(id,on) glows[id]=on or nil;return 1 end
 function OctoAggroNativeCircleRadius(id,radius) circlesCalled=circlesCalled+1;radii[id]=radius>0 and radius or nil;return 1 end
 function OctoAggroNativeProject() error("Rejected projection path called") end
 function OctoAggroNativeSurface() error("Rejected tracing path called") end
+OctoAggroDB={markerVersion=1,skulls=false}
 dofile("NPCData.lua");dofile("AggroModel.lua");dofile("World.lua");dofile("Settings.lua")
 local A=OctoAggroWorld
 local count=0
@@ -32,7 +33,7 @@ end)
 check("no custom ring textures, projection or terrain tracing",function()
  assert(texturesMade==0);assert(A.layer==nil and A.Render==nil);assert(frames.OctoAggroRadar==nil)
 end)
-check("native radius request is a world radius",function() assert(radii[a.id]==18 and radii[b.id]==18) end)
+check("native radius request is a world radius",function() assert(radii[a.id]==18 and radii[b.id]==nil) end)
 check("body glow requests still cover hover and nearby candidate",function()
  assert(glows[a.id] and glows[b.id]);assert(not glows[far.id])
 end)
@@ -74,7 +75,7 @@ check("always-visible button works without target or hover",function()
 end)
 check("inside-circle button is independent and uses source radius",function()
  A.Set("glow",false);b.x=35
- A.checks.inside:GetScript("OnClick")();assert(A.db.inside and glows[b.id] and not glows[far.id])
+ A.Set("inside",not A.db.inside);assert(A.db.inside and glows[b.id] and not glows[far.id])
  local neutral=mob("0x0000000000000004",25,0,10,4);A.Scan();assert(not glows[neutral.id])
  b.x=38;A.Scan();assert(glows[b.id]);b.x=38.1;A.Scan();assert(not glows[b.id])
  b.x=35;b.z=20;A.Scan();assert(not glows[b.id]);b.z=0
@@ -103,4 +104,14 @@ check("multiple loaded NPCs without nameplates or selection",function()
  b.loaded=false;A.Scan();assert(radii[b.id]==nil);b.loaded=true
 end)
 
+check("isolated ring owner highlights without target or mouseover",function()
+ world[b.id]=nil;world[far.id]=nil
+ aliases.target=nil;aliases.mouseover=nil
+ A.Set("glow",false);A.Set("always",true);A.Set("inside",true)
+ assert(radii[a.id] and glows[a.id], "isolated hostile ring owner was excluded from highlight")
+ A.Set("inside",false);assert(next(glows)==nil)
+ A.Set("inside",true);a.dead=true;A.Scan();assert(next(glows)==nil)
+ a.dead=false;a.reaction=4;A.Scan();assert(next(glows)==nil)
+ a.reaction=2;A.Scan();assert(glows[a.id]);A.Command("off");assert(next(glows)==nil)
+end)
 print("PASS "..count.." native-ring Lua groups; live_world_tested=false")

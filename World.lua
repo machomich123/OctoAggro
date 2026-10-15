@@ -1,4 +1,4 @@
-OctoAggroWorld={version="0.6.0-test",units={},glowing={},radii={},maxAlways=12}
+OctoAggroWorld={version="0.8.1-test",units={},glowing={},radii={},maxAlways=12}
 local A=OctoAggroWorld
 function A.Call(fn,a,b,c,d)
   if type(fn)~="function" then return nil end
@@ -8,13 +8,17 @@ end
 function A.Finite(n) return type(n)=="number" and n==n and math.abs(n)<50000 end
 function A.Settings(saved)
   if type(saved)~="table" then saved={} end
-  local out={enabled=true,rings=true,glow=true,always=false,inside=false,base=18,assist=10,rate=1}
+  local out={enabled=true,rings=true,glow=true,always=false,inside=false,base=18,assist=10,rate=1,skulls=true,markerVersion=1}
   for key,value in pairs(out) do
     if type(saved[key])==type(value) and (type(value)=="boolean" or A.Finite(saved[key])) then out[key]=saved[key] end
   end
   out.base=math.max(0,math.min(60,out.base));out.assist=math.max(0,math.min(40,out.assist))
   out.rate=math.max(0,math.min(2,out.rate))
   if saved.modelVersion~=1 then out.base=18;out.rate=1 end
+  if saved.markerVersion~=1 then
+    out.glow=false;out.inside=false;out.always=false;out.skulls=true
+  end
+  out.markerVersion=1
   out.modelVersion=1
   return out
 end
@@ -28,13 +32,15 @@ function A.Distance(a,b)
 end
 function A.Message(s) if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage("|cffff8844OctoAggro:|r "..s) end end
 function A.BridgeReady()
-  return A.Call(OctoAggroNativeVersion)==4 and type(OctoAggroNativeCreatures)=="function" and type(OctoAggroNativeCircleRadius)=="function"
+  local version=A.Call(OctoAggroNativeVersion)
+  return (version==4 or version==6) and type(OctoAggroNativeCreatures)=="function" and type(OctoAggroNativeCircleRadius)=="function"
     and type(OctoAggroNativeAlwaysCircles)=="function"
     and type(OctoAggroNativeGlow)=="function" and type(OctoAggroNativeClear)=="function"
     and type(UnitPosition)=="function" and type(UnitGUID)=="function"
 end
 function A.Clear()
   A.Call(OctoAggroNativeClear);A.glowing={};A.units={};A.hover=nil;A.radii={}
+  if A.ClearMarkers then A.ClearMarkers() end
 end
 function A.Scan()
   if not A.db.enabled or not A.BridgeReady() then A.Clear();return end
@@ -95,12 +101,13 @@ function A.Scan()
       if u.hostile and A.db.assist>0 and d and d<=A.db.assist and math.abs(anchor.z-u.z)<=8 then glow[u.id]=true end
     end
   end
-  -- Requested geometric inclusion. This is NOT a server-confirmed pull link.
+  -- Include the ring owner too: an isolated hostile is inside its own circle.
+  -- Geometric inclusion is not a server-confirmed pull link.
   if A.db.inside then
     for _,source in ipairs(sources) do
       if source.hostile and source.radius and source.radius>0 then
         for _,u in ipairs(units) do
-          if u.id~=source.id and u.hostile and math.abs(source.z-u.z)<=8
+          if u.hostile and math.abs(source.z-u.z)<=8
             and (source.x-u.x)^2+(source.y-u.y)^2<=source.radius^2 then glow[u.id]=true end
         end
       end
@@ -109,11 +116,12 @@ function A.Scan()
   for id in pairs(A.glowing) do if not glow[id] then A.Call(OctoAggroNativeGlow,id,false) end end
   for id in pairs(glow) do A.Call(OctoAggroNativeGlow,id,true) end
   A.glowing=glow;A.units=units;A.hover=hover
+  if A.UpdateMarkerCandidates then A.UpdateMarkerCandidates(units,target) end
   local radii={}
   local drawn=0
   if A.db.rings then
     for _,u in ipairs(units) do
-      if u.radius and u.radius>0 and (not A.db.always or drawn<A.maxAlways) then
+      if u.radius and u.radius>0 and ((A.db.always and drawn<A.maxAlways) or (not A.db.always and u.id==targetId)) then
         drawn=drawn+1
         radii[u.id]=u.radius;A.Call(OctoAggroNativeCircleRadius,u.id,u.radius)
       end
@@ -135,7 +143,9 @@ function A.Command(s)
   elseif s=="toggle" then A.Set("enabled",not A.db.enabled)
   elseif s=="status" then
     A.Message("Rendering bridge: "..(A.BridgeReady() and "available" or "missing / unsupported client"))
+    A.Message("Native overhead skulls: "..((A.Call(OctoAggroNativeVersion)==6 and type(OctoAggroNativeMarker)=="function") and ("available; build "..tostring(A.Call(OctoAggroNativeBuild) or "800")) or "restart required with updated DLL"))
     A.Message("Observed NPCs: "..table.getn(A.units)..". Aggro and extra mobs are estimates.")
+  elseif s=="markers" then A.Set("skulls",not A.db.skulls)
   elseif s=="target" then
     if not A.Call(UnitExists,"target") then A.Message("Select an NPC first.");return end
     local reaction=A.Call(UnitReaction,"player","target")
@@ -151,14 +161,15 @@ function A.Command(s)
   else A.options:Show();A.RefreshOptions() end
 end
 local eventFrame=CreateFrame("Frame","OctoAggroWorldEvents")
-eventFrame:RegisterEvent("ADDON_LOADED");eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD");eventFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
+eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED");eventFrame:RegisterEvent("ADDON_LOADED");eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD");eventFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
 eventFrame:SetScript("OnEvent",function(self,ev,name)
   ev=ev or event;name=name or arg1
   if ev=="ADDON_LOADED" and name=="OctoAggro" then
-    A.db=A.Settings(OctoAggroDB);OctoAggroDB=A.db;A.Clear();A.BuildOptions();A.ready=true
+    A.db=A.Settings(OctoAggroDB);OctoAggroDB=A.db;A.Clear();A.BuildOptions();if A.BuildMarkers then A.BuildMarkers() end;A.ready=true
     SLASH_OCTOAGGRO1="/oa";SLASH_OCTOAGGRO2="/octoaggro";SlashCmdList.OCTOAGGRO=A.Command
-    A.Message("Native-ring test 0.6.0. Automatic NPC templates + live levels/auras; OctoWoW parity remains unverified.")
+    A.Message("Native overhead skulls 0.8.1. Select a hostile NPC; extra enemies are estimates.")
     if not A.BridgeReady() then A.Message("Rendering bridge missing. Run the supplied installer with WoW closed, then restart. No substitute radar is shown.") end
+  elseif ev=="PLAYER_TARGET_CHANGED" then if A.ready and A.inWorld then A.Scan() end
   elseif ev=="PLAYER_LEAVING_WORLD" then A.inWorld=false;A.Clear()
   elseif ev=="PLAYER_ENTERING_WORLD" then A.inWorld=true;if A.ready then A.Scan() end end
 end)

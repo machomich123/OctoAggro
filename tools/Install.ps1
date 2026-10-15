@@ -5,19 +5,25 @@ $game=(Resolve-Path -LiteralPath $GamePath).Path
 $exe=Join-Path $game 'WoW.exe'
 $expected='5014CA1CFEDF860F10E93FE7D955C56C28EB11A2BB503030DBB9B1C777F00470'
 if((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash -ne $expected) {throw 'This rendering test supports only the exact inspected OctoWoW client. No files changed.'}
-$running=Get-CimInstance Win32_Process -Filter "name='WoW.exe'" | Where-Object { $_.ExecutablePath -eq $exe }
-if($running) {throw 'Close this WoW client before installing the rendering bridge.'}
+$running=Get-CimInstance Win32_Process -Filter "name='WoW.exe'" | Where-Object { -not $_.ExecutablePath -or $_.ExecutablePath -eq $exe }
+if($running -or (Get-Process -Name WoW -ErrorAction SilentlyContinue)) {throw 'Close this WoW client before installing the rendering bridge.'}
 $loader=Join-Path $game 'dlls.txt'
 if(-not (Test-Path -LiteralPath $loader)) {throw 'VanillaFixes dlls.txt is required.'}
 $entry='Interface/AddOns/OctoAggro/native/OctoAggroNative.dll'
 $previous=Get-Content -LiteralPath $loader
 $target=Join-Path $game 'Interface\AddOns\OctoAggro'
-$files=@('OctoAggro.toc','NPCData.lua','AggroModel.lua','World.lua','Settings.lua','README.md','LICENSE','native\OctoAggroNative.dll')
+$files=@('OctoAggro.toc','NPCData.lua','AggroModel.lua','World.lua','Markers.lua','Textures\Skull.tga','Settings.lua','README.md','LICENSE','native\OctoAggroNative.dll')
 foreach($file in $files){if(-not (Test-Path -LiteralPath (Join-Path $repo $file) -PathType Leaf)){throw "Missing: $file"}}
 $backup=Join-Path $game ('AddonBackups\OctoAggro-world-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $backup -Force | Out-Null
 Copy-Item -LiteralPath $loader -Destination (Join-Path $backup 'dlls.txt')
 if(Test-Path -LiteralPath $target){Copy-Item -LiteralPath $target -Destination (Join-Path $backup 'OctoAggro') -Recurse}
+if(Test-Path -LiteralPath $target){
+  foreach($old in Get-ChildItem -LiteralPath $target -Recurse -File){
+    $relative=$old.FullName.Substring($target.Length+1)
+    if((Get-FileHash -LiteralPath $old.FullName).Hash -ne (Get-FileHash -LiteralPath (Join-Path $backup ('OctoAggro\'+$relative))).Hash){throw 'Backup verification failed; no installation files changed.'}
+  }
+}
 foreach($file in $files){
   $src=Join-Path $repo $file;$dst=Join-Path $target $file
   New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null

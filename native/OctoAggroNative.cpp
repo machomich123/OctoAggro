@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
+#include <intrin.h>
 #include <unordered_map>
 #include "vendor/minhook/include/MinHook.h"
 
@@ -28,6 +29,23 @@ Tick tickOriginal=nullptr;
 bool registering=false,loaded=false;
 constexpr int reason=30; // Own rendering reason; leave native reasons intact.
 std::unordered_map<uint64_t,DWORD> owned;
+// Separate local render requests, never the server's eight-slot raid table.
+std::unordered_map<uint64_t,DWORD> markers;
+using RaidIndex=int(__stdcall*)(uint32_t,uint32_t);
+RaidIndex raidIndexOriginal=nullptr;
+int LocalMarkerIndex(uint64_t guid,int original,uintptr_t caller,DWORD now){
+  // Only native world-marker drawing, including its near-range nameplate variant.
+  // UI/API callers and existing real raid marks always retain their value.
+  if(original!=8 || (caller!=0x6C70A7 && caller!=0x7CB834 && caller!=0x608AAC))return original;
+  auto it=markers.find(guid);
+  if(it==markers.end() || static_cast<int32_t>(now-it->second)>=0)return original;
+  return 7; // Native skull cell, zero-based.
+}
+int __stdcall RaidIndexHook(uint32_t low,uint32_t high){
+  const uintptr_t caller=reinterpret_cast<uintptr_t>(_ReturnAddress());
+  int original=raidIndexOriginal(low,high);
+  return LocalMarkerIndex((static_cast<uint64_t>(high)<<32)|low,original,caller,GetTickCount());
+}
 struct RadiusRequest {float radius;DWORD until;};
 std::unordered_map<uint64_t,RadiusRequest> circles;
 using DrawCircle=void(__thiscall*)(void*);
@@ -78,6 +96,20 @@ void* object(uint64_t guid){
   using Fn=void*(__fastcall*)(int,const char*,uint32_t,uint32_t,int);
   return at<Fn>(0x468460)(8,"OctoAggro",static_cast<uint32_t>(guid),static_cast<uint32_t>(guid>>32),0);
 }
+// The near-range nameplate path caches its raid icon. Refresh through the
+// engine's own updater whenever a local request changes or is renewed.
+using RefreshRaidMarker=void(__thiscall*)(void*);
+RefreshRaidMarker refreshRaidMarker=at<RefreshRaidMarker>(0x608A90);
+void RefreshLocalMarker(void* obj){if(obj)refreshRaidMarker(obj);}
+bool RequestLocalMarker(uint64_t guid,void* obj,bool enable,DWORD now){
+  if(enable){
+    if(!obj || (markers.size()>=32 && markers.find(guid)==markers.end()))return false;
+    markers[guid]=now+750;
+  }else markers.erase(guid);
+  // Erase BEFORE refresh on removal so the engine sees the real marker again.
+  RefreshLocalMarker(obj);
+  return true;
+}
 bool parse(const char* s,uint64_t& out){
   if(!s || std::strlen(s)!=18 || s[0]!='0' || (s[1]!='x' && s[1]!='X'))return false;
   out=0;
@@ -92,9 +124,20 @@ void glow(void* obj,bool enable){
   uintptr_t addr=enable?0x614550:0x6144F0;
   at<void(__thiscall*)(void*,int)>(addr)(obj,reason);
 }
-void clear(){for(const auto& entry:owned)glow(object(entry.first),false);owned.clear();circles.clear();alwaysCircles=false;}
+void clear(){for(const auto& entry:owned)glow(object(entry.first),false);owned.clear();
+  std::unordered_map<uint64_t,DWORD> removed;markers.swap(removed);
+  for(const auto& entry:removed)RefreshLocalMarker(object(entry.first));
+  circles.clear();alwaysCircles=false;}
 int missing(L l){settop(l,0);pushnil(l);return 1;}
-int __fastcall Version(L){L l=context();settop(l,0);pushnumber(l,4);return 1;}
+int __fastcall Build(L){L l=context();settop(l,0);pushnumber(l,801);return 1;}
+int __fastcall Version(L){L l=context();settop(l,0);pushnumber(l,6);return 1;}
+int __fastcall Marker(L){
+  L l=context();uint64_t guid=0;
+  if(type(l,1)!=4 || type(l,2)!=1 || !parse(string(l,1),guid))return missing(l);
+  const bool enable=boolean(l,2)!=0;
+  if(!RequestLocalMarker(guid,object(guid),enable,GetTickCount()))return missing(l);
+  settop(l,0);pushnumber(l,1);return 1;
+}
 // Enumerate locally loaded creatures, independently of nameplates/camera.
 // Verified ClassicAPI ABI: callback context in ECX, GUID on stack.
 using EnumCallback=int(__fastcall*)(void*,void*,uint64_t);
@@ -150,6 +193,8 @@ void __fastcall RegisterHook(const char* name,CFn function){
   if(!registering && name && !std::strcmp(name,"UnitXP")){
     registering=true;clear();
     registerOriginal("OctoAggroNativeVersion",Version);
+    registerOriginal("OctoAggroNativeBuild",Build);
+    registerOriginal("OctoAggroNativeMarker",Marker);
     registerOriginal("OctoAggroNativeCreatures",Creatures);
     registerOriginal("OctoAggroNativeGlow",Glow);
     registerOriginal("OctoAggroNativeClear",Clear);
@@ -165,6 +210,12 @@ void __fastcall TickHook(int a,int b,int c){
   for(auto it=owned.begin();it!=owned.end();){
     if(!ready() || static_cast<int32_t>(now-it->second)>=0){glow(object(it->first),false);it=owned.erase(it);}
     else ++it;
+  }
+  for(auto it=markers.begin();it!=markers.end();){
+    if(!ready()||static_cast<int32_t>(now-it->second)>=0){
+      const uint64_t guid=it->first;it=markers.erase(it);
+      RefreshLocalMarker(object(guid));
+    }else ++it;
   }
   for(auto it=circles.begin();it!=circles.end();){
     if(!ready()||static_cast<int32_t>(now-it->second.until)>=0)it=circles.erase(it);else ++it;
@@ -193,6 +244,8 @@ extern "C" __declspec(dllexport) unsigned __cdecl Load(){
   if(MH_CreateHook(at<void*>(0x66FD50),reinterpret_cast<void*>(TickHook),reinterpret_cast<void**>(&tickOriginal))!=MH_OK){MH_RemoveHook(at<void*>(0x704120));return 4;}
   if(MH_CreateHook(at<void*>(0x608E00),reinterpret_cast<void*>(CircleDrawHook),reinterpret_cast<void**>(&circleOriginal))!=MH_OK){MH_RemoveHook(MH_ALL_HOOKS);return 6;}
   if(MH_CreateHook(at<void*>(0x614A90),reinterpret_cast<void*>(VisualUpdateHook),reinterpret_cast<void**>(&visualOriginal))!=MH_OK){MH_RemoveHook(MH_ALL_HOOKS);return 7;}
+  if(MH_CreateHook(at<void*>(0x4BB190),reinterpret_cast<void*>(RaidIndexHook),reinterpret_cast<void**>(&raidIndexOriginal))!=MH_OK){MH_RemoveHook(MH_ALL_HOOKS);return 8;}
+  MH_QueueEnableHook(at<void*>(0x4BB190));
   MH_QueueEnableHook(at<void*>(0x614A90));
   MH_QueueEnableHook(at<void*>(0x608E00));
   MH_QueueEnableHook(at<void*>(0x704120));MH_QueueEnableHook(at<void*>(0x66FD50));

@@ -1,75 +1,24 @@
-# OctoAggro 0.5.0 verification â€” 2026-10-13
+# Native attachment evidence — 0.8.1
 
-Current model verification:
+Source: the exact installed W:/Games/Octowow/WoW.exe (fingerprint in README).
+- 0x4BB190 is the stdcall reverse raid GUID lookup, returning index 0..7 or 8.
+- 0x6C6E90 native per-unit world text/raid-marker rendering resolves the unit GUID.
+- 0x6C6F00 calls 0x608640 to obtain the unit model's overhead attachment.
+- 0x608640 requests attachment 18 or 29 through 0x712CB0/0x712D50, with model-height fallback.
+- 0x6C70A2 calls 0x4BB190, return 0x6C70A7. Native drawing uses the returned skull cell.
+- 0x7CB82F and 0x608AA7 call the same lookup for the native nameplate path.
+- Other lookup callers, including API callers, retain their original values.
+- The engine's GUID table at 0xB71368 is never written by this addon.
 
-- Parsed 12,751 upstream template rows. Independently fetched the pinned source
-  and checked its SHA-256 against the parsed source. UTF-8 deterministic rebuild
-  was run twice with identical generated output.
-- Eight automatic-model groups passed in actual Lua 5.0.3, including loading the
-  entire generated dataset, Vile Familiar 12-yard base, level changes, range floors,
-  level-difference cap, multiplier, Soothe, player modifiers, stacks, ID/name reuse,
-  missing aura APIs, random magnitudes and stealth.
-- Sixteen retained native-ring Lua groups passed with the new model loaded.
-- Installed ClassicAPI binary contains the names of GetUnitAuras,
-  GetSpellEffectInfo, GetSpellDescription and UnitCreatureID. String presence is
-  not live-registration or observed-aura proof.
-- Native DLL code and protocol are unchanged from 0.4.0. No additional native
-  drawing hook or terrain tracing was added for the automatic calculation.
-- Source-derived calculations do not verify OctoWoW template/config parity.
-  Actual range and live aura behavior still need a controlled game test.
+The tests verify dispatch/isolation/expiry logic and ABI with a mock trampoline.
+Disassembly supports the selected native path; it does not establish live success.
+No game input was sent and no game process was terminated for this repair.
 
-Earlier drawing verification and history:
-
-The previous 0.2.0 build failed the user's live visual/performance test: reported
-extreme lag, broken rings and ground clipping. That is the concrete reason for
-replacing its rendering path.
-
-The user subsequently confirmed 0.3.0's native ring behaved acceptably in-game,
-but reported a mismatch with actual aggro range. This does not verify 0.4.0's
-new always-visible draw dispatch or establish an exact radius.
-
-Confirmed for the current build:
-
-- Disassembled the actual client selection-circle draw at 0x608e00 and its
-  CGUnit vtable entry. Its radius input is CF0 multiplied by descriptor scale.
-- Removed the rejected Lua texture renderer and native surface/project APIs.
-  No ring terrain rays, per-point projection or ring line textures remain.
-- Sixteen Lua test groups passed in actual Lua 5.0.3. Tests cover startup, the new
-  protocol, zero custom ring textures, requests, switches, stale state, disabled
-  scans and a four-per-second scan limit. Calling the rejected APIs raises test
-  errors; no calls occurred.
-- New checks exercise both settings buttons, no-selection operation, independent
-  geometric highlighting, neutral exclusion, circle boundary and vertical-floor
-  filtering, twelve-circle cap, target inspection and protocol migration.
-- Compiled and executed tests/test_circle.cpp against the actual production hook.
-  Three object scales produced the requested radius during the fake draw.
-  All object and descriptor bytes matched their originals after the callback.
-  Expired/missing requests and invalid scales passed through unchanged.
-- The production extra-circle dispatch was exercised with a fake native draw:
-  unselected requested NPCs drew, selected duplicates did not, and disabled or
-  expired mode/request state did not draw. The 0x614a90 ABI was inspected in the
-  actual client. Its live hook and draw staging remain unverified.
-- Built x86 DLL with static runtime. The unsupported x86 host rejected it before
-  installing hooks (Load returned 1).
-
-Not verified for 0.4.0: always-visible drawing in a running game, new-hook
-coexistence or its frame-time cost. The mock draw is not a native game rendering
-test. Aggro boundaries and possible assists remain estimates. Exact-range
-research is in EXACT-AGGRO-RESEARCH.md.
-
-Installed six hash-verified files. Snapshot: W:\Games\Octowow\AddonBackups\OctoAggro-world-20261013-130229-169. Existing loader entries retained; one bridge entry. No game session launched.
-
-0.4.0 installed: six hash-verified runtime files; snapshot W:\Games\Octowow\AddonBackups\OctoAggro-world-20261013-154046-694. Existing loader retained. No game controlled or launched.
-
-0.5.0 deployment: 8 hash-verified runtime files. Install/restore exercised on a disposable client copy. Backup: W:\Games\Octowow\AddonBackups\OctoAggro-world-20261013-161604-360. No game launched or controlled.
-
-## 0.6.0
-
-Built the x86 DLL successfully. Passed 17 Lua 5.0 ring/settings groups, including
-three simultaneous loaded NPCs without nameplates/target/mouseover and stale
-request removal, and all 8 automatic-model groups. Production native draw and
-always-dispatch tests pass. Actual WoW.exe disassembly at 0x468380 confirms the
-fastcall enumeration callback/context/GUID convention and zero return stop.
-No live game test has been performed for this version. This repairs a confirmed
-observer limitation; any remaining native simultaneous-drawing issue requires
-in-game reproduction. Aggro accuracy has not been measured in millimetres.
+Cache defect evidence:
+- 0x6C70B2 reads CGUnit+0xE60; a non-null native nameplate skips world icon drawing.
+- 0x7CB82F queries the raid icon when binding a unit to a plate, not per local request.
+- 0x608A90 re-queries the index and calls 0x7CBE20 to show/hide the plate's raid texture.
+- pfUI's installed nameplates module reuses/reparents this native raidicon region.
+- 0.8.1 invokes 0x608A90 for active requests, removal, expiry and clear.
+The prior document incorrectly described this as a chat-bubble variant; that label
+is corrected here. Native marker visibility and cache logic have separate tests.
