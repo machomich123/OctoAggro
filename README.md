@@ -1,8 +1,12 @@
-# OctoAggro 0.8.1
+﻿# OctoAggro 0.8.1
 
 Viser lokale hodeskaller over valgt fiende og fiender i nærheten som muligens kan bli med i kampen. Vanlige raidmarkeringer har prioritet. Bruk `/oa` for innstillinger.
 
-## Last ned og installer
+## Har du allerede OctoAggro fra launcheren?
+
+Last ned **OctoAggro-DLL-installer.zip** fra [nyeste utgave](https://github.com/machomich123/OctoAggro/releases/latest). Pakk ut hele pakken, dobbeltklikk **Installer-DLLer.cmd**. Den finner spillmappen automatisk gjennom OctoLauncher. Den ordner manglende DLL-er og lastingen av dem. [Full veiledning](DLL-INSTALLER.md).
+
+## Last ned og installer hele tillegget
 
 1. Last ned **OctoAggro-0.8.1.zip** fra [nyeste utgave](https://github.com/machomich123/OctoAggro/releases/latest).
 2. Pakk ut ZIP-filen. Lukk WoW helt.
@@ -10,7 +14,7 @@ Viser lokale hodeskaller over valgt fiende og fiender i nærheten som muligens k
 4. Oppgi mappen hvor WoW.exe ligger. Trykk Enter hvis den er `W:\Games\Octowow`.
 5. Start WoW og aktiver OctoAggro i AddOns. Skriv `/oa status` for å kontrollere at tillegget og den innebygde delen er lastet.
 
-Installeringen tar sikkerhetskopi og kontrollerer filene. Den krever OctoWoW-klienten 1.12.1.5875 med VanillaFixes og `dlls.txt`. En annen WoW.exe blir avvist før filer endres. Dette er ikke et vanlig tillegg for dagens WoW Classic eller Retail. En full omstart av spillet er nødvendig etter oppdatering.
+Installeringen tar sikkerhetskopi og kontrollerer filene. Den krever OctoWoW-klienten 1.12.1.5875 med VanillaFixes og `dlls.txt`. Den krever også **ClassicAPI.dll** og **UnitXP_SP3.dll**; bruk DLL-installeren hvis disse mangler. Start spillet gjennom **VanillaFixes.exe** eller en launcher som bruker den. En annen WoW.exe blir avvist før filer endres. Dette er ikke et vanlig tillegg for dagens WoW Classic eller Retail. En full omstart av spillet er nødvendig etter oppdatering.
 
 ## Rettelsen i 0.8.1
 
